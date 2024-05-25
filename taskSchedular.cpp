@@ -50,33 +50,61 @@ void Scheduler::schedule(const Job j, long n)
 
     // shared pointer to the job, ensures that "job" object remains valid during its execution
     // prevents invalidity of 'job' object when 'job' goes out of scope
+    // auto job = std::make_shared<Job>(j);
 
-    // TODO : simplify this by sending job directly inside the function
-    auto job = std::make_shared<Job>(j);
+    // // create a thread for every job with params n (time), job, and the pointer to the schedular instance
 
-    // create a thread for every job with params n (time), job, and the pointer to the schedular instance
+    // here the lambda function captures n, job and this (current instance of scheduler class) from the outside of program when we are creating
+    // the thread, thus we dont need extra params to be passed onto the lambda function
+
+    // std::thread thread{
+    //     [n, job, this]
+    //     {
+    //         // sleep for n milisec to simulate job scheduling delay
+    //         std::this_thread::sleep_for(std::chrono::milliseconds(n));
+
+    //         try
+    //         {
+    //             (*job)(); // job executed by de-referrencing the pointer to the job
+    //         }
+    //         catch (const std::exception &e)
+    //         { // catch errors
+    //             this->error(e);
+    //         }
+    //         catch (...)
+    //         {
+    //             this->error(std::runtime_error("Unknown"));
+    //         }
+
+    //         condition.notify_one(); // after job completion, notify the thread waiting for the job completion
+    //         countJobs--;            // job execution completed to running jobs - 1
+    //     }};
+
+    // whereas here, the lambda function only captures "this" - the current instance of scheduler
+    // and all other needed params are passed as params (job j, time n)
     std::thread thread{
-        [n, job, this]
+        [this](const Job j, long n)
         {
-            // sleep for n milisec to simulate job scheduling delay
             std::this_thread::sleep_for(std::chrono::milliseconds(n));
 
             try
             {
-                (*job)(); // job executed by de-referrencing the pointer to the job
+                (*j)();
             }
             catch (const std::exception &e)
-            { // catch errors
+            {
                 this->error(e);
             }
             catch (...)
             {
-                this->error(std::runtime_error("Unknown"));
+                this->error(std::runtime_error("Unknown Error"));
             }
 
-            condition.notify_one(); // after job completion, notify the thread waiting for the job completion
-            countJobs--;            // job execution completed to running jobs - 1
-        }};
+            condition.notify_one();
+            countJobs--;
+        },
+        j, n};
+
     thread.detach();
 }
 
